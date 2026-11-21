@@ -23,6 +23,7 @@ import Footer from "@/components/Footer";
 import { Booking, BookingStatus } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 import { siteConfig } from "@/lib/site";
+import { getAllBookings, updateBookingStatus } from "@/lib/storage";
 
 export default function AdminDashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -30,14 +31,11 @@ export default function AdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
 
-  const fetchBookings = async () => {
+  const fetchBookings = () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/bookings");
-      const data = await res.json();
-      if (data.success && data.bookings) {
-        setBookings(data.bookings);
-      }
+      const list = getAllBookings();
+      setBookings(list);
     } catch (err) {
       console.error("Failed to load admin bookings:", err);
     } finally {
@@ -50,9 +48,8 @@ export default function AdminDashboardPage() {
   }, []);
 
   const handleUpdateStatus = (ref: string, newStatus: BookingStatus) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.referenceNumber === ref ? { ...b, status: newStatus } : b))
-    );
+    updateBookingStatus(ref, newStatus);
+    setBookings(getAllBookings());
   };
 
   // Filtered List

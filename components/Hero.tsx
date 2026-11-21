@@ -98,7 +98,7 @@ export default function Hero() {
           <div className="relative w-full h-full overflow-hidden">
             <video
               ref={videoRef}
-              src="/videos/urbanedge-hero.mp4"
+              src={`${siteConfig.basePath}/videos/urbanedge-hero.mp4`}
               autoPlay
               loop
               muted={isMuted}
@@ -403,7 +403,7 @@ export default function Hero() {
             {/* Video Player Frame: Cinematic 16:9 */}
             <div className="relative aspect-video w-full bg-black">
               <video
-                src="/videos/urbanedge-hero.mp4"
+                src={`${siteConfig.basePath}/videos/urbanedge-hero.mp4`}
                 controls
                 autoPlay
                 className="w-full h-full"

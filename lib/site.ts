@@ -1,6 +1,7 @@
 export const siteConfig = {
   name: "URBANEDGE",
   legalName: "UrbanEdge Grooming & Barber Co.",
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   tagline: "More than a cut, it's an experience.",
   subTagline: "Sharp Style. Sharp You.",
   description: "Modern cuts. Classic shaves. Premium experience for the modern gentleman in an upscale ambiance.",

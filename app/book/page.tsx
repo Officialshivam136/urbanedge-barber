@@ -23,6 +23,8 @@ import Footer from "@/components/Footer";
 import { services, barbers } from "@/lib/data";
 import { siteConfig } from "@/lib/site";
 import { formatPrice, generateWhatsAppBookingUrl, getAvailableSlots } from "@/lib/utils";
+import { saveBooking } from "@/lib/storage";
+import { Booking } from "@/lib/types";
 
 function BookingWizard() {
   const searchParams = useSearchParams();
@@ -111,45 +113,44 @@ function BookingWizard() {
     setErrorMessage(null);
 
     try {
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceId: selectedService.id,
-          serviceName: selectedService.name,
-          servicePrice: finalServicePrice,
-          barberId: selectedBarber.id,
-          barberName: selectedBarber.name,
-          date: selectedDate,
-          timeSlot: selectedSlot,
-          customerName: name,
-          customerPhone: phone,
-          customerEmail: email,
-          isStudentDiscount: isStudentDiscountActive,
-          notes,
-          paymentMethod: "WHATSAPP_CONFIRMED",
-        }),
+      const ref = `UE-${selectedDate.replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const newBooking: Booking = {
+        id: `book_${Date.now()}`,
+        referenceNumber: ref,
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        servicePrice: finalServicePrice,
+        barberId: selectedBarber.id,
+        barberName: selectedBarber.name,
+        date: selectedDate,
+        timeSlot: selectedSlot,
+        customerName: name,
+        customerPhone: phone,
+        customerEmail: email,
+        isStudentDiscount: !!isStudentDiscountActive,
+        notes,
+        bookingAmountPaid: bookingTokenAmount,
+        balanceDueAtShop: balanceAtShop,
+        status: "CONFIRMED",
+        paymentMethod: "WHATSAPP_CONFIRMED",
+        createdAt: new Date().toISOString(),
+      };
+
+      saveBooking(newBooking);
+
+      const waUrl = generateWhatsAppBookingUrl({
+        referenceNumber: ref,
+        serviceName: selectedService.name,
+        barberName: selectedBarber.name,
+        date: selectedDate,
+        timeSlot: selectedSlot,
+        customerName: name,
+        customerPhone: phone,
+        isStudent: isStudentDiscountActive,
       });
 
-      const data = await res.json();
-      if (data.success && data.booking) {
-        // Open WhatsApp with prefilled message
-        const waUrl = generateWhatsAppBookingUrl({
-          referenceNumber: data.booking.referenceNumber,
-          serviceName: data.booking.serviceName,
-          barberName: data.booking.barberName,
-          date: data.booking.date,
-          timeSlot: data.booking.timeSlot,
-          customerName: data.booking.customerName,
-          customerPhone: data.booking.customerPhone,
-          isStudent: isStudentDiscountActive,
-        });
-
-        window.open(waUrl, "_blank");
-        router.push(`/booking/${data.booking.referenceNumber}`);
-      } else {
-        setErrorMessage(data.error || "Failed to reserve appointment.");
-      }
+      window.open(waUrl, "_blank");
+      router.push(`/booking/?ref=${ref}`);
     } catch (err) {
       console.error(err);
       setErrorMessage("Something went wrong. Please check your connection.");
@@ -168,63 +169,33 @@ function BookingWizard() {
     setErrorMessage(null);
 
     try {
-      // 1. Create booking in pending status
-      const bookingRes = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceId: selectedService.id,
-          serviceName: selectedService.name,
-          servicePrice: finalServicePrice,
-          barberId: selectedBarber.id,
-          barberName: selectedBarber.name,
-          date: selectedDate,
-          timeSlot: selectedSlot,
-          customerName: name,
-          customerPhone: phone,
-          customerEmail: email,
-          isStudentDiscount: isStudentDiscountActive,
-          notes,
-          paymentMethod: "RAZORPAY",
-        }),
-      });
+      const ref = `UE-${selectedDate.replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const newBooking: Booking = {
+        id: `book_${Date.now()}`,
+        referenceNumber: ref,
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        servicePrice: finalServicePrice,
+        barberId: selectedBarber.id,
+        barberName: selectedBarber.name,
+        date: selectedDate,
+        timeSlot: selectedSlot,
+        customerName: name,
+        customerPhone: phone,
+        customerEmail: email,
+        isStudentDiscount: !!isStudentDiscountActive,
+        notes,
+        bookingAmountPaid: bookingTokenAmount,
+        balanceDueAtShop: balanceAtShop,
+        status: "CONFIRMED",
+        paymentMethod: "RAZORPAY",
+        paymentId: `pay_rzp_${Date.now()}`,
+        orderId: `order_rzp_${Date.now()}`,
+        createdAt: new Date().toISOString(),
+      };
 
-      const bookingData = await bookingRes.json();
-      if (!bookingData.success) {
-        throw new Error(bookingData.error || "Booking registration failed");
-      }
-
-      const booking = bookingData.booking;
-
-      // 2. Generate Razorpay order for ₹50
-      const orderRes = await fetch("/api/payments/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingRef: booking.referenceNumber }),
-      });
-      const orderData = await orderRes.json();
-
-      if (!orderData.success) {
-        throw new Error(orderData.error || "Order generation failed");
-      }
-
-      // 3. Confirm payment (simulate successful capture for ₹50 token)
-      const verifyRes = await fetch("/api/payments/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookingRef: booking.referenceNumber,
-          paymentId: `pay_rzp_${Date.now()}`,
-          orderId: orderData.orderId,
-        }),
-      });
-
-      const verifyData = await verifyRes.json();
-      if (verifyData.success) {
-        router.push(`/booking/${booking.referenceNumber}?paid=true`);
-      } else {
-        throw new Error("Payment confirmation failed");
-      }
+      saveBooking(newBooking);
+      router.push(`/booking/?ref=${ref}&paid=true`);
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Payment failed. Please try WhatsApp booking.";
